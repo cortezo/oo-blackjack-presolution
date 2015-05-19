@@ -1,0 +1,14 @@
+BlackJack in English
+
+Blackjack is a card game with at least one player and a dealer.  The dealer deals cards from a deck of 52.
+
+First, the dealer deals a card to the player, then a card to the dealer's hand.  Then the dealer deals another card to the player
+and another card to the dealer's hand.  The second card to the dealer's hand is not visible (face down).  
+
+If the dealer has blackjack (21), and the player doesn't, then the house wins.  If the player has blackjack and the dealer doesn't, then the player wins.  If both the dealer have blackjack, then they push (tie).  
+
+IF there isn't a win or a tie, the player can choose to hit (dealer deals a card) or stay.  The player can choose to keep hitting until they bust or get 21.  The player Stands when they don't want anymore cards.  
+
+When the player stands, the dealer deals cards into the dealer's hand until the hand value is 17 or higher, or the hand busts.
+
+When the dealer's turn is over, the hands are compared and the winner is determined.  If the hand values are the same, they push.
