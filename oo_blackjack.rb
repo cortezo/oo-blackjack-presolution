@@ -258,7 +258,7 @@ class Blackjack
     end
   end
 
-  def determine_winner
+  def determine_game_outcome
     if self.dealer.busted?
       puts "Dealer busts.  #{self.player.name} wins!!"
     elsif self.dealer.hand.value > self.player.hand.value
@@ -306,7 +306,7 @@ class Blackjack
     dealer_turn
     display_table
 
-    determine_winner      
+    determine_game_outcome     
   end
 end
 
