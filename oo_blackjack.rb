@@ -23,6 +23,24 @@ class Player
   def show_hand
     self.hand.cards.each { |card| puts card}
   end
+
+  def discard_hand
+    self.hand = Hand.new
+    self.standing = false
+  end
+end
+
+########################################################
+class Dealer < Player
+  def show_hand_with_hidden_card
+    self.hand.cards.each_with_index do |card, i|
+      if i == 1
+        puts "*** Hidden Card ***"  # Second card dealt to Dealer is face-down
+      else
+        puts card
+      end
+    end
+  end
 end
 
 ########################################################
@@ -56,19 +74,6 @@ class Hand
 
   def add_card(card)
     @cards << card
-  end
-end
-
-########################################################
-class Dealer < Player
-  def show_hand_with_hidden_card
-    self.hand.cards.each_with_index do |card, i|
-      if i == 1
-        puts "*** Hidden Card ***"  # Second card dealt to Dealer is face-down
-      else
-        puts card
-      end
-    end
   end
 end
 
@@ -118,6 +123,8 @@ end
 
 ########################################################
 class Blackjack
+  attr_accessor :deck
+  attr_reader :dealer, :player
 
   def initialize
     puts "Please enter your name:"
@@ -129,24 +136,24 @@ class Blackjack
   end
 
   def reset
-    @deck = Deck.new
-    @dealer.hand = Hand.new
-    @player.hand = Hand.new
+    self.deck = Deck.new
+    self.dealer.discard_hand
+    self.player.discard_hand
   end
 
   def display_table
     sleep(1)
     system 'clear'
     puts "Dealer's Hand:"
-    if @player.standing
-      @dealer.show_hand
+    if self.player.standing || self.player.hand.value > 21
+      self.dealer.show_hand
       puts "          Value: #{@dealer.hand.value}"
     else
-      @dealer.show_hand_with_hidden_card
+      self.dealer.show_hand_with_hidden_card
     end
     puts ""
     puts "#{@player.name}'s Hand:"
-    @player.show_hand
+    self.player.show_hand
     puts "          Value: #{@player.hand.value}"
     puts ""
     puts "**#{@player.name} is standing**" if @player.standing
@@ -159,10 +166,10 @@ class Blackjack
 
       case hit_or_stand
       when "hit"
-        @player.hit(@deck.deal_card)
-        break if @player.hand.value > 21
+        self.player.hit(@deck.deal_card)
+        break if self.player.hand.value > 21
       when "stand"
-        @player.stand
+        self.player.stand
         break
       else
         puts "Please enter a valid input of 'hit' or 'stand'"
@@ -174,12 +181,12 @@ class Blackjack
 
   def dealer_turn
     loop do
-      if @dealer.hand.value > 21
+      if self.dealer.hand.value > 21
         break
-      elsif @dealer.hand.value < 17
-        @dealer.hit(@deck.deal_card)
+      elsif self.dealer.hand.value < 17
+        self.dealer.hit(@deck.deal_card)
       else
-        @dealer.stand
+        self.dealer.stand
         break
       end
       display_table       
@@ -189,13 +196,16 @@ class Blackjack
   def start_game
     loop do
       puts "Let's Play Blackjack!"
+
       play
-      puts ""
+
+      puts "\n\n"
       puts "Would you like to play again?  Enter 'yes' to continue."
       if gets.chomp.downcase != 'yes'
         puts "Goodbye."
         break
       end
+
       reset
     end
   end
@@ -210,24 +220,32 @@ class Blackjack
       display_table
     end
 
+    # Check for blackjack, return immediately for player blackjack (wins even if dealer has blackjack).
+    if self.player.hand.value == 21
+      display_table
+      puts "#{self.player.name} wins with Blackjack!"
+      return
+    end
+
     player_turn
     display_table
 
     # Check for player bust
-    if @player.hand.value > 21
-      puts "#{@player.name} busts.  Dealer wins."
+    if self.player.hand.value > 21
+      display_table
+      puts "#{self.player.name} busts.  Dealer wins."
       return
     end
 
     dealer_turn
     display_table
 
-    if @dealer.hand.value > 21
-      puts "Dealer busts.  #{@player.name} wins!!"
-    elsif @dealer.hand.value > @player.hand.value
+    if self.dealer.hand.value > 21
+      puts "Dealer busts.  #{self.player.name} wins!!"
+    elsif self.dealer.hand.value > self.player.hand.value
       puts "Dealer wins."
-    elsif @dealer.hand.value < @player.hand.value
-      puts "Player wins!!"
+    elsif self.dealer.hand.value < self.player.hand.value
+      puts "#{self.player.name} wins!!"
     else
       puts "Push."
     end
