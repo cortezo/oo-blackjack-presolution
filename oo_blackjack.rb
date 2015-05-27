@@ -290,7 +290,7 @@ class Blackjack
   def play
     display_table
     deal_initial_cards
-    binding.pry
+
     if initial_hand_blackjack?
       return
     end
