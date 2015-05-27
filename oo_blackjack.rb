@@ -3,10 +3,11 @@ require 'pry'
 ########################################################
 class Player
   attr_reader :name
-  attr_accessor :standing, :hand
+  attr_accessor :standing, :hand, :blackjack
 
   def initialize(name)
     @standing = false
+    @blackjack = false
     @hand = Hand.new
     @name = name
   end
@@ -27,6 +28,11 @@ class Player
   def discard_hand
     self.hand = Hand.new
     self.standing = false
+    self.blackjack = false
+  end
+
+  def busted?
+    self.hand.bust?
   end
 end
 
@@ -47,6 +53,8 @@ end
 class Hand
   attr_accessor :cards
 
+  BLACKJACK_VALUE = 21
+
   def initialize
     @cards = []
   end
@@ -63,13 +71,29 @@ class Hand
       end
     end
 
-    if card_values.reduce(:+) > 21 && card_values.include?(11)
+    if card_values.reduce(:+) > BLACKJACK_VALUE && card_values.include?(11)
       loop do
         card_values[card_values.find_index(11)] = 1
-        break if card_values.reduce(:+) <= 21 || !card_values.include?(11)
+        break if card_values.reduce(:+) <= BLACKJACK_VALUE || !card_values.include?(11)
       end
     end
     card_values.reduce(:+)
+  end
+
+  def blackjack?
+    if value == BLACKJACK_VALUE && self.cards.count == 2
+      true
+    else
+      false
+    end
+  end
+
+  def bust?
+    if value > BLACKJACK_VALUE
+      true
+    else
+      false
+    end
   end
 
   def add_card(card)
@@ -127,8 +151,16 @@ class Blackjack
   attr_reader :dealer, :player
 
   def initialize
-    puts "Please enter your name:"
-    player_name = gets.chomp
+    player_name = ""
+    loop do
+      puts "Please enter your name:"
+      player_name = gets.chomp
+      if player_name == ""
+        puts "Please enter a name to continue."
+        next
+      end
+      break
+    end
 
     @deck = Deck.new
     @dealer = Dealer.new("Dealer")
@@ -145,18 +177,30 @@ class Blackjack
     sleep(1)
     system 'clear'
     puts "Dealer's Hand:"
-    if self.player.standing || self.player.hand.value > 21
+
+    # Determine whether to show hidden dealer card and value.
+    if self.player.standing || self.player.busted? || self.dealer.blackjack || self.player.blackjack
       self.dealer.show_hand
-      puts "          Value: #{@dealer.hand.value}"
+      puts "          Value: #{self.dealer.hand.value}"
     else
       self.dealer.show_hand_with_hidden_card
     end
+
     puts ""
-    puts "#{@player.name}'s Hand:"
+    puts "#{self.player.name}'s Hand:"
     self.player.show_hand
-    puts "          Value: #{@player.hand.value}"
-    puts ""
-    puts "**#{@player.name} is standing**" if @player.standing
+    puts "          Value: #{self.player.hand.value}"
+    puts "\n************************************\n"
+    puts "**#{self.player.name} is standing**" if self.player.standing
+  end
+
+  def deal_initial_cards
+    2.times do 
+      @player.hit(@deck.deal_card)
+      display_table
+      @dealer.hit(@deck.deal_card)
+      display_table
+    end
   end
 
   def player_turn
@@ -166,8 +210,8 @@ class Blackjack
 
       case hit_or_stand
       when "hit"
-        self.player.hit(@deck.deal_card)
-        break if self.player.hand.value > 21
+        self.player.hit(self.deck.deal_card)
+        break if self.player.busted?
       when "stand"
         self.player.stand
         break
@@ -181,15 +225,48 @@ class Blackjack
 
   def dealer_turn
     loop do
-      if self.dealer.hand.value > 21
+      if self.dealer.busted?
         break
       elsif self.dealer.hand.value < 17
-        self.dealer.hit(@deck.deal_card)
+        self.dealer.hit(self.deck.deal_card)
       else
         self.dealer.stand
         break
       end
       display_table       
+    end
+  end
+
+  def initial_hand_blackjack?
+    if self.player.hand.blackjack? && self.dealer.hand.blackjack?
+      self.player.blackjack, self.dealer.blackjack = true
+      display_table
+      puts "Dealer and #{self.player.name} have Blackjack.  Push."
+      true
+    elsif self.player.hand.blackjack?
+      self.player.blackjack = true
+      display_table
+      puts "#{self.player.name} wins with Blackjack!"
+      true
+    elsif self.dealer.hand.blackjack?
+      self.dealer.blackjack = true
+      display_table
+      puts "Dealer wins with Blackjack."
+      true
+    else
+      false
+    end
+  end
+
+  def determine_winner
+    if self.dealer.busted?
+      puts "Dealer busts.  #{self.player.name} wins!!"
+    elsif self.dealer.hand.value > self.player.hand.value
+      puts "Dealer wins."
+    elsif self.dealer.hand.value < self.player.hand.value
+      puts "#{self.player.name} wins!!"
+    else
+      puts "Push."
     end
   end
 
@@ -211,28 +288,17 @@ class Blackjack
   end
 
   def play
-    # Initial dealt cards
     display_table
-    2.times do 
-      @player.hit(@deck.deal_card)
-      display_table
-      @dealer.hit(@deck.deal_card)
-      display_table
-    end
-
-    # Check for blackjack, return immediately for player blackjack (wins even if dealer has blackjack).
-    if self.player.hand.value == 21
-      display_table
-      puts "#{self.player.name} wins with Blackjack!"
+    deal_initial_cards
+    binding.pry
+    if initial_hand_blackjack?
       return
     end
 
     player_turn
     display_table
 
-    # Check for player bust
-    if self.player.hand.value > 21
-      display_table
+    if self.player.busted?
       puts "#{self.player.name} busts.  Dealer wins."
       return
     end
@@ -240,16 +306,7 @@ class Blackjack
     dealer_turn
     display_table
 
-    if self.dealer.hand.value > 21
-      puts "Dealer busts.  #{self.player.name} wins!!"
-    elsif self.dealer.hand.value > self.player.hand.value
-      puts "Dealer wins."
-    elsif self.dealer.hand.value < self.player.hand.value
-      puts "#{self.player.name} wins!!"
-    else
-      puts "Push."
-    end
-      
+    determine_winner      
   end
 end
 
